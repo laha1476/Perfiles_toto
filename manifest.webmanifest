@@ -1,0 +1,16 @@
+{
+  "name": "Camino · Libreta de campo",
+  "short_name": "Camino",
+  "description": "Levantamiento de caminos rurales: estaciones con cinta y pendientes medidas con el teléfono.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f5f0",
+  "theme_color": "#163e30",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

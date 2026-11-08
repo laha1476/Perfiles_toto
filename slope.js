@@ -2,7 +2,13 @@
 // Se carga al final, después de app.js, topo.js, projects-manage.js y stations.js.
 const slState={on:false,bound:false,beta:null,heading:null,sink:null,lastPaint:0};
 let slCur={ida:null,vuelta:null},slCal={r1:null};
-const SL_TIMING={MEASURE_MS:3000};
+const SL_TIMING={SETTLE_MS:1000,MEASURE_MS:3000};
+let slWakeLock=null;
+// Mantiene la pantalla encendida mientras los sensores están activos (si el navegador lo permite).
+async function slKeepAwake(){try{if(slState.on&&document.visibilityState==='visible'&&!slWakeLock&&navigator.wakeLock){slWakeLock=await navigator.wakeLock.request('screen');slWakeLock.addEventListener('release',()=>{slWakeLock=null})}}catch{}}
+document.addEventListener('visibilitychange',slKeepAwake);
+const slBuzz=ms=>{try{navigator.vibrate?.(ms)}catch{}};
+const slWait=ms=>new Promise(r=>setTimeout(r,ms));
 const isSlope=()=>data.method==='slope';
 const slSet=(id,t)=>{const el=$(id);if(el)el.textContent=t};
 const slSigned=(v,n=2)=>(v>0?'+':v<0?'−':'')+Math.abs(v).toFixed(n);
@@ -25,7 +31,7 @@ async function slEnable(){
    const r=await DeviceOrientationEvent.requestPermission();
    if(r!=='granted')throw Error('Permiso de movimiento y orientación denegado. En iPhone: Ajustes › Safari › Movimiento y orientación.')}
   if(!slState.bound){window.addEventListener('deviceorientationabsolute',slOnOrientation,true);window.addEventListener('deviceorientation',slOnOrientation,true);slState.bound=true}
-  slState.on=true;slSet('slope-live','Sensores activados. Esperando datos…');
+  slState.on=true;slKeepAwake();$('sensor-btn').textContent='Sensores activos';slSet('slope-live','Sensores activados. Esperando datos…');
   for(const id of ['read-ida','read-vuelta','cal1','cal2'])$(id).disabled=false;
   setTimeout(()=>{if(slState.beta===null)slSet('slope-live','No llegan datos del sensor. Abre la página con HTTPS en el teléfono y revisa los permisos.')},2500)
  }catch(err){slSet('slope-live',err.message)}}
@@ -35,7 +41,10 @@ function slCollect(ms){return new Promise((resolve,reject)=>{
  slState.sink=(b,h)=>{betas.push(b);if(h!==null)heads.push(h)};
  const tick=()=>{const left=ms-(performance.now()-t0);if(left<=0){slState.sink=null;resolve({betas,heads})}else{slSet('slope-live','Midiendo… mantén el teléfono quieto ('+Math.ceil(left/1000)+' s)');setTimeout(tick,150)}};tick()})}
 async function slRead(){
- const {betas,heads}=await slCollect(SL_TIMING.MEASURE_MS);
+ if(!slState.on)throw Error('Activa los sensores primero.');
+ // Pausa para que el teléfono deje de moverse después de pulsar el botón.
+ for(let left=SL_TIMING.SETTLE_MS;left>0;left-=250){slSet('slope-live','Suelta el teléfono… la medición empieza enseguida');await slWait(Math.min(250,left))}
+ const {betas,heads}=await slCollect(SL_TIMING.MEASURE_MS);slBuzz(150);
  if(betas.length<8)throw Error('El teléfono no envió suficientes lecturas del sensor. Repite la medición.');
  const deg=median(betas),sd=stdev(betas);
  if(Math.abs(deg)>SLOPE_LIMITS.MAX_ANGLE)throw Error('Inclinación fuera de rango ('+slSigned(deg,1)+'°). Coloca el teléfono boca arriba o sobre su canto, con el borde largo hacia la siguiente estación.');
@@ -45,7 +54,7 @@ function slBusy(b){for(const id of ['read-ida','read-vuelta','cal1','cal2','sens
 async function slMeasure(kind){
  slBusy(true);
  try{slCur[kind]=await slRead();slApplyReadings();slSet('slope-live',(kind==='ida'?'Ida':'Vuelta')+' registrada: '+slSigned(slCur[kind].deg)+'° (±'+slCur[kind].sd.toFixed(2)+'°, '+slCur[kind].n+' lecturas).'+(slCur[kind].sd>SLOPE_LIMITS.SD_WARN?' Variación alta: conviene repetir.':''))}
- catch(err){slSet('slope-live',err.message)}finally{slBusy(false)}}
+ catch(err){slBuzz([80,60,80]);slSet('slope-live',err.message)}finally{slBusy(false)}}
 function slApplyReadings(){
  const comb=combineAngle(slCur.ida,slCur.vuelta,Number(data.zeroOffset)||0),f=r=>r?slSigned(r.deg)+'° (±'+r.sd.toFixed(2)+')':'—';
  if(comb){$('angle').value=comb.deg.toFixed(2);$('angle').dispatchEvent(new Event('input'))}
@@ -121,6 +130,7 @@ $('form').onsubmit=function(e){
 const slBaseEdit=editPoint;
 editPoint=function(id){
  slBaseEdit(id);const p=data.points.find(p=>p.id===id);if(!p)return;
+ $('edit-d').readOnly=isSlope();
  if(isSlope()){
   const firstId=[...data.points].sort((a,b)=>(a.seq??0)-(b.seq??0))[0].id;
   $('edit-d').readOnly=true;$('edit-z').value=Number.isFinite(p.z)?p.z.toFixed(2):'';
