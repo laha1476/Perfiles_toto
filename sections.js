@@ -20,7 +20,7 @@ function sectionPoints(p,xs=p.xs,mode=data.tapeMode){
 function sectionSvg(p,xs=p.xs,opts={}){
  const W=opts.w||520,H=opts.h||230,L=50,R=16,T=opts.title===false?14:30,B=34;
  const pts=sectionPoints(p,xs),edges=[-(p.l||0),p.r||0];
- const os=[...pts.map(a=>a.o),...edges],zs=pts.map(a=>a.z);
+ const extra=opts.extra||[],os=[...pts.map(a=>a.o),...edges,...extra.map(a=>a.o)],zs=[...pts.map(a=>a.z),...extra.map(a=>a.z)];
  let o0=Math.min(...os,-1),o1=Math.max(...os,1);const oPad=(o1-o0)*.06;o0-=oPad;o1+=oPad;
  let z0=Math.min(...zs),z1=Math.max(...zs);const zPad=Math.max((z1-z0)*.25,.4);z0-=zPad;z1+=zPad;
  // Misma escala en ambos ejes si cabe; si no, exageración vertical rotulada.
@@ -35,7 +35,7 @@ function sectionSvg(p,xs=p.xs,opts={}){
  const first=pts[0],last=pts[pts.length-1];
  const edgeMarks=edges.map((o,i)=>o?`<line x1="${x(o).toFixed(1)}" x2="${x(o).toFixed(1)}" y1="${T}" y2="${H-B}" stroke="#c98a12" stroke-dasharray="3 3"/><text x="${x(o).toFixed(1)}" y="${T+9}" text-anchor="middle" fill="#a06d0c">borde</text>`:'').join('');
  const title=opts.title===false?'':`<text x="${L}" y="16" fill="#24634d" font-size="11">SECCIÓN ${station(p.d)} · cota eje ${p.z.toFixed(2)} m</text><text x="${W-R}" y="16" text-anchor="end">${exag<1.05?'escala 1:1':'exageración vertical ×'+exag.toFixed(1)}</text>`;
- return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Sección transversal en ${station(p.d)}"><g font-size="9" fill="#6b7c65">${grid}${title}<text x="${(L+W-R)/2}" y="${H-4}" text-anchor="middle">← izquierda · distancia al eje (m) · derecha →</text></g>${pts.length>1?`<polygon points="${x(first.o).toFixed(1)},${H-B} ${line} ${x(last.o).toFixed(1)},${H-B}" fill="#dde9d1"/><polyline points="${line}" fill="none" stroke="#366b48" stroke-width="2.5" stroke-linejoin="round"/>`:''}<g font-size="9">${edgeMarks}</g><line x1="${x(0).toFixed(1)}" x2="${x(0).toFixed(1)}" y1="${T}" y2="${H-B}" stroke="#24634d" stroke-dasharray="5 4"/><text x="${x(0).toFixed(1)}" y="${T-3}" text-anchor="middle" font-size="9" fill="#24634d">EJE</text>${pts.map(a=>`<circle cx="${x(a.o).toFixed(1)}" cy="${y(a.z).toFixed(1)}" r="${a.axis?4:3}" fill="${a.axis?'#24634d':'#366b48'}"><title>${a.axis?'Eje':(XS_SIDES[a.side]+' '+a.n)}: ${a.o.toFixed(2)} m, cota ${a.z.toFixed(2)} m</title></circle>`).join('')}</svg>`}
+ return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Sección transversal en ${station(p.d)}"><g font-size="9" fill="#6b7c65">${grid}${title}<text x="${(L+W-R)/2}" y="${H-4}" text-anchor="middle">← izquierda · distancia al eje (m) · derecha →</text></g>${pts.length>1?`<polygon points="${x(first.o).toFixed(1)},${H-B} ${line} ${x(last.o).toFixed(1)},${H-B}" fill="#dde9d1"/><polyline points="${line}" fill="none" stroke="#366b48" stroke-width="2.5" stroke-linejoin="round"/>`:''}${opts.overlay?opts.overlay(x,y):''}<g font-size="9">${edgeMarks}</g><line x1="${x(0).toFixed(1)}" x2="${x(0).toFixed(1)}" y1="${T}" y2="${H-B}" stroke="#24634d" stroke-dasharray="5 4"/><text x="${x(0).toFixed(1)}" y="${T-3}" text-anchor="middle" font-size="9" fill="#24634d">EJE</text>${pts.map(a=>`<circle cx="${x(a.o).toFixed(1)}" cy="${y(a.z).toFixed(1)}" r="${a.axis?4:3}" fill="${a.axis?'#24634d':'#366b48'}"><title>${a.axis?'Eje':(XS_SIDES[a.side]+' '+a.n)}: ${a.o.toFixed(2)} m, cota ${a.z.toFixed(2)} m</title></circle>`).join('')}</svg>`}
 
 /* ---------- Diálogo de edición ---------- */
 function openSection(id){
@@ -52,7 +52,7 @@ function renderXsRows(){
  drawXs()}
 function drawXs(){
  const p=data.points.find(p=>p.id===xsPointId);if(!p)return;
- $('xs-draw').innerHTML=sectionSvg(p,xsDraft);
+ $('xs-draw').innerHTML=sectionSvg(p,xsDraft,typeof xsDesignOpts==='function'?xsDesignOpts(p,xsDraft):{});
  const bad=['L','R'].flatMap(s=>xsDraft[s].map((r,i)=>[s,i,r])).filter(([,,r])=>!xsValid(r)).length;
  const pts=sectionPoints(p,xsDraft),lo=pts[0],hi=pts[pts.length-1];
  $('xs-summary').textContent=(pts.length>1?'Ancho levantado: '+(hi.o-lo.o).toFixed(2)+' m ('+Math.abs(lo.o).toFixed(2)+' m izq. · '+hi.o.toFixed(2)+' m der.) · Cota mín. '+Math.min(...pts.map(a=>a.z)).toFixed(2)+' / máx. '+Math.max(...pts.map(a=>a.z)).toFixed(2)+' m':'Agrega puntos a cada lado del eje.')+(bad?' · '+bad+(bad===1?' punto incompleto (no se dibuja).':' puntos incompletos (no se dibujan).'):'')}
@@ -90,7 +90,7 @@ function renderSections(){
  const el=$('xs-list');if(!el)return;
  const pts=sortedPoints(),withXs=pts.filter(p=>xsCount(p));
  $('xs-count').textContent=pts.length?withXs.length+' de '+pts.length+' estaciones con sección.':'';
- el.innerHTML=withXs.length?withXs.map(p=>`<div class="xs-card"><div class="xs-card-head"><b>E-${pts.indexOf(p)+1} · ${station(p.d)}</b><button class="no-print" onclick="openSection('${p.id}')">Editar</button></div>${sectionSvg(p,p.xs,{w:360,h:190})}</div>`).join(''):'<p class="empty">Aún no hay secciones. Usa el botón <b>Sección</b> en la libreta de estaciones.</p>'}
+ el.innerHTML=withXs.length?withXs.map(p=>`<div class="xs-card"><div class="xs-card-head"><b>E-${pts.indexOf(p)+1} · ${station(p.d)}</b><button class="no-print" onclick="openSection('${p.id}')">Editar</button></div>${sectionSvg(p,p.xs,{w:360,h:190,...(typeof xsDesignOpts==='function'?xsDesignOpts(p,p.xs):{})})}${typeof xsDesignLabel==='function'?xsDesignLabel(p):''}</div>`).join(''):'<p class="empty">Aún no hay secciones. Usa el botón <b>Sección</b> en la libreta de estaciones.</p>'}
 function sectionRows(){
  const rows=[];sortedPoints().forEach(p=>{sectionPoints(p).forEach(a=>{
   const r=a.axis?null:p.xs[a.side][a.n-1];
