@@ -7,7 +7,10 @@ let slWakeLock=null;
 // Mantiene la pantalla encendida mientras los sensores están activos (si el navegador lo permite).
 async function slKeepAwake(){try{if(slState.on&&document.visibilityState==='visible'&&!slWakeLock&&navigator.wakeLock){slWakeLock=await navigator.wakeLock.request('screen');slWakeLock.addEventListener('release',()=>{slWakeLock=null})}}catch{}}
 document.addEventListener('visibilitychange',slKeepAwake);
-const slBuzz=ms=>{try{navigator.vibrate?.(ms)}catch{}};
+let slAudio=null;
+// Pitido corto (funciona también en iPhone, donde no hay vibración). ok=false: dos tonos graves.
+function slBeep(ok){try{slAudio=slAudio||new (window.AudioContext||window.webkitAudioContext)();if(slAudio.state==='suspended')slAudio.resume();const t=slAudio.currentTime;(ok?[[880,0]]:[[330,0],[330,.22]]).forEach(([f,dt])=>{const o=slAudio.createOscillator(),g=slAudio.createGain();o.frequency.value=f;g.gain.setValueAtTime(.25,t+dt);g.gain.exponentialRampToValueAtTime(.001,t+dt+.18);o.connect(g).connect(slAudio.destination);o.start(t+dt);o.stop(t+dt+.2)})}catch{}}
+const slBuzz=ms=>{slBeep(!Array.isArray(ms));try{navigator.vibrate?.(ms)}catch{}};
 const slWait=ms=>new Promise(r=>setTimeout(r,ms));
 const isSlope=()=>data.method==='slope';
 const slSet=(id,t)=>{const el=$(id);if(el)el.textContent=t};
@@ -25,6 +28,7 @@ function slOnOrientation(e){
  const t=performance.now();
  if(t-slState.lastPaint>250){slState.lastPaint=t;slSet('slope-live','Inclinación del eje largo: '+slSigned(e.beta)+'°'+(slState.heading!==null?' · Rumbo magnético: '+Math.round(slState.heading)+'°':' · Sin brújula'))}}
 async function slEnable(){
+ try{slAudio=slAudio||new (window.AudioContext||window.webkitAudioContext)();slAudio.resume?.()}catch{}
  try{
   if(typeof DeviceOrientationEvent==='undefined')throw Error('Este navegador no entrega datos de orientación.');
   if(typeof DeviceOrientationEvent.requestPermission==='function'){
@@ -122,9 +126,9 @@ $('form').onsubmit=function(e){
   readings:fromSensor?{ida:slCur.ida,vuelta:slCur.vuelta}:null,heading:slCur.ida?.heading??null,l:num('left'),r:num('right'),lat,lon,u:null,notes:$('notes').value,
   azimuth:first?null:azimuth,azSource:first?null:azSource,reference:data.reference,source:'Pendiente medida con el teléfono',time:new Date().toISOString()});
  data.draft={};save();render();
- for(const id of ['angle','lat','lon','left','right','notes','azimuth'])$(id).value='';$('tape').value=data.step;
+ const keepL=$('left').value,keepR=$('right').value;for(const id of ['angle','lat','lon','notes','azimuth'])$(id).value='';$('tape').value=data.step;$('left').value=keepL;$('right').value=keepR;saveDraft();
  slClearReadings();gpsSource='manual';
- $('status').textContent='Estación guardada. Mide el siguiente tramo.'};
+ $('status').textContent='Estación guardada. Mide el siguiente tramo. Los anchos se copiaron de esta estación: cámbialos si varían.'};
 
 /* ---------- Editar y eliminar estación en modo pendiente ---------- */
 const slBaseEdit=editPoint;
