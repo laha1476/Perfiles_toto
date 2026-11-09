@@ -38,7 +38,7 @@ function backupNotice(p){
  const days=Math.floor((Date.now()-since)/864e5),when=days<1?'hoy':days===1?'ayer':'hace '+days+' días';
  return pending?{text:'Último respaldo '+when+' · '+pending+(pending===1?' estación nueva o editada':' estaciones nuevas o editadas')+' sin respaldar.',warn:true}:{text:'Respaldado '+when+'.',warn:false}}
 const exBaseProjectOptions=renderProjectOptions;
-renderProjectOptions=function(){exBaseProjectOptions();const el=$('project-count');if(!el)return;const n=backupNotice(data);el.textContent=projectsState.projects.length+' proyectos en este navegador'+(n.text?' · '+n.text:'');el.classList.toggle('warn',n.warn)};
+renderProjectOptions=function(){exBaseProjectOptions();const el=$('project-count');if(!el)return;const n=backupNotice(data);el.textContent=projectsState.projects.length+(projectsState.projects.length===1?' proyecto':' proyectos')+' en este navegador'+(n.text?' · '+n.text:'');el.classList.toggle('warn',n.warn)};
 
 /* ---------- Resumen de pendientes del perfil ---------- */
 function renderGradeSummary(){
