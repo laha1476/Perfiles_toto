@@ -100,7 +100,7 @@ render=function(){
  slApplyMode();slBaseRender();
  const pts=[...data.points].sort((a,b)=>a.d-b.d);
  if(pts.length>=2){$('chart').innerHTML=profileSvg(pts,typeof designVertices==='function'?designVertices():null);$('topo-profile').innerHTML=$('chart').innerHTML}
- slSet('slope-quality',q&&q.segments?q.segments+' tramos · '+q.both+' con ida y vuelta'+(q.incomplete?' · '+q.incomplete+' sin ángulo o cinta (se tomaron como planos; edítalos)':'')+(q.maxTie>SLOPE_LIMITS.TIE_WARN?' · Atención: error de cero implícito de hasta '+q.maxTie.toFixed(2)+'°; repite esas lecturas':'')+'.':'')};
+ slSet('slope-quality',q&&q.segments?q.segments+(q.segments===1?' tramo · ':' tramos · ')+q.both+' con ida y vuelta'+(q.incomplete?' · '+q.incomplete+' sin ángulo o cinta (se tomaron como planos; edítalos)':'')+(q.maxTie>SLOPE_LIMITS.TIE_WARN?' · Atención: error de cero implícito de hasta '+q.maxTie.toFixed(2)+'°; repite esas lecturas':'')+'.':'')};
 
 /* ---------- Agregar estación en modo pendiente ---------- */
 const slBaseSubmit=$('form').onsubmit;
