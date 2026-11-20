@@ -29,7 +29,8 @@ function recalcSlope(project){
  pts.forEach((p,i)=>{
   if(!i){p.d=roundTo(Number(project.d0)||0,2);p.z=roundTo(Number(project.z0)||0,3);p.dz=null;p.slope=null;p.incomplete=false;return}
   const prev=pts[i-1],ok=Number.isFinite(p.tape)&&p.tape>0&&Number.isFinite(p.angle)&&Math.abs(p.angle)<=SLOPE_LIMITS.MAX_ANGLE;
-  const s=ok?segment(p.tape,p.angle,project.tapeMode):{h:step,dz:0};
+  // Sin ángulo: tramo plano; usa la cinta (o la distancia GPS importada) si existe, si no el intervalo.
+  const s=ok?segment(p.tape,p.angle,project.tapeMode):{h:Number.isFinite(p.tape)&&p.tape>0?p.tape:step,dz:0};
   const h=roundTo(s.h,2),dz=roundTo(s.dz,3);
   p.d=roundTo(prev.d+h,2);p.z=roundTo(prev.z+dz,3);p.dz=dz;p.slope=h?dz/h*100:null;p.incomplete=!ok;
   out.segments++;if(!ok)out.incomplete++;
